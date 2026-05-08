@@ -157,6 +157,9 @@ const b1p2b2 = b1 + 2b2
 const b2p2b1 = b2 + 2b1
 const b1mb2 = b1 - b2
 
+# rotation matrix by 2π/3
+const mat = SA[-1/2 -sqrt(3)/2; sqrt(3)/2 -1/2]
+
 # we label the components with the monolayer vectors
 struct ElasticitySolver{T}
     M::Matrix{T}
@@ -169,14 +172,14 @@ struct ElasticitySolver{T}
 end
 
 function ElasticitySolver(M::Matrix{Float64}, N_shell::Integer=4)
-    N_star = N_shell * (N_shell + 1) / 2 # number of stars
+    N_star = N_shell * (N_shell + 1) ÷ 2 # number of stars
 
     bvecs = Int[]
-    # representative b vectors
+    # representative b vectors (we assume C3)
     for n1 in 1:N_shell, n2 in 0:n1-1
         append!(bvecs, n1, n2)
-        append!(bvecs, -n2, n1 - n2) # rotated by 2π/3
-        append!(bvecs, n2 - n1, -n1) # rotated by 4π/3
+        # append!(bvecs, -n2, n1 - n2) # rotated by 2π/3
+        # append!(bvecs, n2 - n1, -n1) # rotated by 4π/3
     end
     bvecs = reshape(bvecs, 2, :)
 
@@ -188,10 +191,10 @@ function ElasticitySolver(M::Matrix{Float64}, N_shell::Integer=4)
     invM = [M[2,2] -M[1, 2]; -M[2, 1] M[1, 1]] / detM
     L1 = invM * a1
     L2 = invM * a2
-
+    
     L = (norm(L1) + norm(L2)) / 2 # mean length of primitive moiré vectors (L / a)
     Mn = L * M # normalized displacement gradient
-   
+
     gx = Float64[]
     gy = Float64[]
     invdotgg = Float64[]
@@ -200,7 +203,7 @@ function ElasticitySolver(M::Matrix{Float64}, N_shell::Integer=4)
         b_1 = bvecs[1, m] * b1[1] + bvecs[2, m] * b2[1]
         b_2 = bvecs[1, m] * b1[2] + bvecs[2, m] * b2[2]
 
-        # normalized moiré reciprocal vectors (units 1/a): gn = (L / a) M^T b
+        # normalized moiré reciprocal vectors (units 1/a): g = (L / a) M^T b
         gx_ = Mn[1, 1] * b_1 + Mn[2, 1] * b_2
         gy_ = Mn[1, 2] * b_1 + Mn[2, 2] * b_2
         dotgg = abs2(gx_) + abs2(gy_)
@@ -213,8 +216,8 @@ function ElasticitySolver(M::Matrix{Float64}, N_shell::Integer=4)
     return ElasticitySolver{Float64}(M, N_shell, N_star, bvecs, gx, gy, invdotgg)
 end
 
-# gradient of the adhesion potential with C3v symmetry in ϕ (units 1/a) normalized by (L / a)^2
-# cn = (L / a)^2 Re(Vn), pn = (L / a)^2 Im(Vn)
+# gradient of the adhesion potential with C3v symmetry in ϕ (units 1/a) normalized by (L/a)^2
+# cn = (L/a)^2 Re(Vn), pn = (L/a)^2 Im(Vn)
 function dV(ϕ::AbstractVector{Complex{T}}, c1::Real, c2::Real, c3::Real, p1::Real, p3::Real) where {T<:Real}
     return -2c1 * (b1 * sin(dot(b1, ϕ)) + b2 * sin(dot(b2, ϕ)) + b1pb2 * sin(dot(b1pb2, ϕ))) +
            -2p1 * (b1 * cos(dot(b1, ϕ)) + b2 * cos(dot(b2, ϕ)) - b1pb2 * cos(dot(b1pb2, ϕ))) +
@@ -228,14 +231,25 @@ end
 
     ux = zero(T)
     uy = zero(T)
+    sum_s = s1 + s2
 
     @inbounds @views @fastmath @simd for m in eachindex(gx)
         # g . (s1 L1 + s2 L2) = b . (s1 a1 + s2 a2) = 2π (s1 n1 + s2 n2) with b = n1 b1 + n2 b2
-        foo = -im * exp(im * 2π * (bvecs[1, m] * s1 + bvecs[2, m] * s2)) * invdotgg[m]
+        exp_1 = exp(im * 2π * (bvecs[1, m] * s1 + bvecs[2, m] * s2)) 
+        exp_2 = exp(im * 2π * (bvecs[1, m] * s2 - bvecs[2, m] * sum_s)) 
+        exp_3 = exp(im * 2π * (-bvecs[1, m] * sum_s + bvecs[2, m] * s1))
 
-        # (upar gx - uperp gy, upar gy + uperp gx)
-        ux += (U_para[m] * gx[m] - U_perp[m] * gy[m]) * foo
-        uy += (U_para[m] * gy[m] + U_perp[m] * gx[m]) * foo
+        # (ux, uy) = (upar gx - uperp gy, upar gy + uperp gx)
+        foo1x = U_para[m] * gx[m] - U_perp[m] * gy[m]
+        foo1y = U_para[m] * gy[m] + U_perp[m] * gx[m]
+
+        foo2x = mat[1, 1] * foo1x + mat[1, 2] * foo1y
+        foo2y = mat[2, 1] * foo1x + mat[2, 2] * foo1y
+        foo3x = mat[1, 1] * foo1x + mat[2, 1] * foo1y
+        foo3y = mat[1, 2] * foo1x + mat[2, 2] * foo1y
+
+        ux += -im * (foo1x * exp_1 + foo2x * exp_2 + foo3x * exp_3 ) * invdotgg[m]
+        uy += -im * (foo1y * exp_1 + foo2y * exp_2 + foo3y * exp_3 ) * invdotgg[m]
     end
 
     return ux + conj(ux), uy + conj(uy)
@@ -246,14 +260,14 @@ function update!(solver::ElasticitySolver{T}, U_next::AbstractVector{Complex{T}}
     c1, c2, c3, p1, p3 = Vg
     @unpack N_star, bvecs, gx, gy, invdotgg = solver
 
-    U1_para = view(U, 1:3N_star)
-    U2_para = view(U, 3N_star+1:6N_star)
-    U1_perp = view(U, 6N_star+1:9N_star)
-    U2_perp = view(U, 9N_star+1:12N_star)
-    U1_para_next = view(U_next, 1:3N_star)
-    U2_para_next = view(U_next, 3N_star+1:6N_star)
-    U1_perp_next = view(U_next, 6N_star+1:9N_star)
-    U2_perp_next = view(U_next, 9N_star+1:12N_star)
+    U1_para = view(U, 1:N_star)
+    U2_para = view(U, N_star+1:2N_star)
+    U1_perp = view(U, 2N_star+1:3N_star)
+    U2_perp = view(U, 3N_star+1:4N_star)
+    U1_para_next = view(U_next, 1:N_star)
+    U2_para_next = view(U_next, N_star+1:2N_star)
+    U1_perp_next = view(U_next, 2N_star+1:3N_star)
+    U2_perp_next = view(U_next, 3N_star+1:4N_star)
 
     @batch for m in axes(bvecs, 2)
 
@@ -271,7 +285,6 @@ function update!(solver::ElasticitySolver{T}, U_next::AbstractVector{Complex{T}}
             int2 += dv2 * w[i] * w[j]
         end
 
-        # a factor of (L / a)^2 is absorbed in dV
         int1 *= -im * invdotgg[m]
         int2 *= -im * invdotgg[m]
         dotgint = gx[m] * int1 + gy[m] * int2
@@ -319,16 +332,16 @@ function get_U(
     @. s = (s + 1) / 2    # transform nodes from [-1,1] to [0,1]
     @. w = w / 2          # Jacobian
 
-    U = zeros(ComplexF64, 12N_star)
+    U = zeros(ComplexF64, 4N_star)
 
     if !(isempty(U1_para0) || isempty(U1_perp0)isempty(U2_para0) || isempty(U2_perp0))
         fill!(U, zero(eltype(U)))
         @assert length(U1_para0) == length(U2_para0) == length(U1_perp0) == length(U2_perp0)
-        N0 = min(3N_star, length(U1_para0))
+        N0 = min(N_star, length(U1_para0))
         @. U[1:N0] = U1_para0[1:N0]
-        @. U[3N_star+1:3N_star+N0] = U2_para0[1:N0]
-        @. U[6N_star+1:6N_star+N0] = U1_perp0[1:N0]
-        @. U[9N_star+1:9N_star+N0] = U2_perp0[1:N0]
+        @. U[N_star+1:N_star+N0] = U2_para0[1:N0]
+        @. U[2N_star+1:2N_star+N0] = U1_perp0[1:N0]
+        @. U[3N_star+1:3N_star+N0] = U2_perp0[1:N0]
     end
 
     U_next = similar(U)
@@ -379,7 +392,7 @@ function get_U(
     print_timer(Timer; compact=true, linechars=:ascii)
 
     # return u_para and u_perp
-    return view(U, 1:3N_star), view(U, 3N_star+1:6N_star), view(U, 6N_star+1:9N_star), view(U, 9N_star+1:12N_star)
+    return view(U, 1:N_star), view(U, N_star+1:2N_star), view(U, 2N_star+1:3N_star), view(U, 3N_star+1:4N_star)
 end
 
 # first-star theory
@@ -418,10 +431,10 @@ for (i, q) in enumerate(var)
         U2_para0 = Complex{Float64}[]
         U2_perp0 = Complex{Float64}[]
     else
-        u_para0 = readdlm(folder * "u_para_$(var[i-1])_$(N_shell).dat", '\t', Complex{Float64}, '\n')
-        u_perp0 = readdlm(folder * "u_perp_$(var[i-1])_$(N_shell).dat", '\t', Complex{Float64}, '\n')
-        # U_para0 = readdlm(folder * "U_para_$(var[i-1])_$(N_shell).dat", '\t', Complex{Float64}, '\n')
-        # U_perp0 = readdlm(folder * "U_perp_$(var[i-1])_$(N_shell).dat", '\t', Complex{Float64}, '\n')
+        u_para0 = readdlm(folder * "u_para_$(var[i-1])_$(N_shell)_C3.dat", '\t', Complex{Float64}, '\n')
+        u_perp0 = readdlm(folder * "u_perp_$(var[i-1])_$(N_shell)_C3.dat", '\t', Complex{Float64}, '\n')
+        # U_para0 = readdlm(folder * "U_para_$(var[i-1])_$(N_shell)_C3.dat", '\t', Complex{Float64}, '\n')
+        # U_perp0 = readdlm(folder * "U_perp_$(var[i-1])_$(N_shell)_C3.dat", '\t', Complex{Float64}, '\n')
         # homobilayer
         U1_para0 = +u_para0 / 2
         U1_perp0 = +u_perp0 / 2
@@ -441,8 +454,8 @@ for (i, q) in enumerate(var)
     # zchop!(U_para, eps)
     # zchop!(U_perp, eps)
 
-    writedlm(folder * "u_para_$(q)_$(N_shell).dat", u_para)
-    writedlm(folder * "u_perp_$(q)_$(N_shell).dat", u_perp)
+    writedlm(folder * "u_para_$(q)_$(N_shell)_C3.dat", u_para)
+    writedlm(folder * "u_perp_$(q)_$(N_shell)_C3.dat", u_perp)
     # writedlm(folder * "U_para_$(q)_$(N_shell).dat", U_para)
     # writedlm(folder * "U_perp_$(q)_$(N_shell).dat", U_perp)
 
