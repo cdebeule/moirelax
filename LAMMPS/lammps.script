@@ -1,0 +1,34 @@
+cat > lammps.script << EOF
+## beginning
+### This LAMMPS input script to relax twisted bilayer graphene structure
+#### basic parameters
+units             metal
+atom_style        full
+boundary          p p p
+newton            on
+dimension         3
+
+### Import data
+read_data          TBG_297_0.11119_.dat
+#
+### Force field specification
+pair_style hybrid/overlay drip rebo
+pair_coeff * * drip C.drip  C
+pair_coeff * * rebo CH.rebo C
+
+###Settings
+neighbor          2.0 bin
+neigh_modify      delay 3
+timestep          0.001 #pico seconds
+thermo_style      custom step pe etotal fnorm fmax
+thermo            10
+restart           50000 NICYCLESTAT.STA
+
+###Relaxation
+#
+dump 2 all custom 100 dump.minimization id mol x y z
+dump_modify 2 format float %20.15g sort id
+#
+min_style         cg
+minimize          0.0 1e-10 5000000 5000000
+#
