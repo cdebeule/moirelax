@@ -217,13 +217,13 @@ function ElasticitySolver(M::Matrix{Float64}, N_shell::Integer=4)
 end
 
 # gradient of the adhesion potential with C3v symmetry in ϕ (units 1/a) normalized by (L/a)^2
-# cn = (L/a)^2 Re(Vn), pn = (L/a)^2 Im(Vn)
+# cn = (L/a)^2 Re(Vn), pn = -(L/a)^2 Im(Vn)
 function dV(ϕ::AbstractVector{Complex{T}}, c1::Real, c2::Real, c3::Real, p1::Real, p3::Real) where {T<:Real}
     return -2c1 * (b1 * sin(dot(b1, ϕ)) + b2 * sin(dot(b2, ϕ)) + b1pb2 * sin(dot(b1pb2, ϕ))) +
-           -2p1 * (b1 * cos(dot(b1, ϕ)) + b2 * cos(dot(b2, ϕ)) - b1pb2 * cos(dot(b1pb2, ϕ))) +
+           +2p1 * (b1 * cos(dot(b1, ϕ)) + b2 * cos(dot(b2, ϕ)) - b1pb2 * cos(dot(b1pb2, ϕ))) +
            -2c2 * (b1p2b2 * sin(dot(b1p2b2, ϕ)) + b2p2b1 * sin(dot(b2p2b1, ϕ)) + b1mb2 * sin(dot(b1mb2, ϕ))) +
            -2c3 * (2b1 * sin(2dot(b1, ϕ)) + 2b2 * sin(2dot(b2, ϕ)) + 2b1pb2 * sin(2dot(b1pb2, ϕ)))
-           -2p3 * (2b1 * cos(2dot(b1, ϕ)) + 2b2 * cos(2dot(b2, ϕ)) - 2b1pb2 * sin(2dot(b1pb2, ϕ)))
+           +2p3 * (2b1 * cos(2dot(b1, ϕ)) + 2b2 * cos(2dot(b2, ϕ)) - 2b1pb2 * sin(2dot(b1pb2, ϕ)))
 end
 
 # displacement field (units a) as a function of r = s1 L1 + s2 L2
