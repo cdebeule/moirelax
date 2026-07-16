@@ -349,7 +349,7 @@ function get_U(
     mixer = MixerDISS(U; kwargs...)
 
     println("|=================================================|")
-    println("|=================Moire Elasticity================|")
+    println("|====================MoireRelax===================|")
     println("|=================================================|")
     println(@sprintf("| theta   :%30s    deg  |", θ))
     println(@sprintf("| lambda1 :%30s         |", λ[1]))
