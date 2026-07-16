@@ -140,7 +140,7 @@ end
 get_error(A::AbstractArray{Complex{T}}, B::AbstractArray{Complex{T}}) where {T} = get_error(reinterpret(T, A), reinterpret(T, B))
 
 ### moirelax ###
-# PRB ... (2026)
+# Phys. Rev. B 113, L241402 (2026)
 # self-consistent method for relaxed configuration of moiré bilayers from continuum elasticity
 # no symmetry is taken into account and heterobilayers and heterostrain is also supported
 
