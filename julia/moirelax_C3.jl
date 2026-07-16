@@ -144,11 +144,11 @@ get_error(A::AbstractArray{Complex{T}}, B::AbstractArray{Complex{T}}) where {T} 
 # self-consistent method for relaxed configuration of moiré bilayers from continuum elasticity
 # no symmetry is taken into account and heterobilayers and heterostrain is also supported
 
-# monolayer lattice vectors: zigzag direction along x
+# monolayer lattice vectors (units a); zigzag direction along x
 const a1 = SA[-1/2, sqrt(3)/2]
 const a2 = SA[-1, 0]
 
-# monolayer reciprocal vectors
+# monolayer reciprocal vectors (units 1/a)
 const b1 = SA[0, 4π/sqrt(3)]
 const b2 = SA[-2π, -2π/sqrt(3)]
 
