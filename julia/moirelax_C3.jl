@@ -160,7 +160,6 @@ const b1mb2 = b1 - b2
 # rotation matrix by 2π/3
 const mat = SA[-1/2 -sqrt(3)/2; sqrt(3)/2 -1/2]
 
-# we label the components with the monolayer vectors
 struct ElasticitySolver{T}
     M::Matrix{T}
     N_shell::Int
@@ -171,6 +170,7 @@ struct ElasticitySolver{T}
     invdotgg::Vector{T}
 end
 
+# we label the components with the monolayer vectors
 function ElasticitySolver(M::Matrix{Float64}, N_shell::Integer=4)
     N_star = N_shell * (N_shell + 1) ÷ 2 # number of stars
 
