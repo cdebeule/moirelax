@@ -248,8 +248,8 @@ end
         foo3x = mat[1, 1] * foo1x + mat[2, 1] * foo1y
         foo3y = mat[1, 2] * foo1x + mat[2, 2] * foo1y
 
-        ux += -im * (foo1x * exp_1 + foo2x * exp_2 + foo3x * exp_3 ) * invdotgg[m]
-        uy += -im * (foo1y * exp_1 + foo2y * exp_2 + foo3y * exp_3 ) * invdotgg[m]
+        ux += -im * (foo1x * exp_1 + foo2x * exp_2 + foo3x * exp_3) * invdotgg[m]
+        uy += -im * (foo1y * exp_1 + foo2y * exp_2 + foo3y * exp_3) * invdotgg[m]
     end
 
     return ux + conj(ux), uy + conj(uy)
